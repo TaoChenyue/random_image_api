@@ -1,19 +1,34 @@
 <?php
-const ALLOW_RAW_OUTPUT = false;
-// 是否开启 ?raw 选项，可能会消耗服务器较多流量
 
-function has_query($query)
+function get_img($type, $seed, $img_list)
 {
-    return isset($_GET[$query]);
+    if (!in_array($type, ["h", "v", "s"]))
+        $type = "h";
+    $list = $img_list[$type];
+    srand($seed);
+    $index = rand(0, count($list) - 1);
+    return $list[$index];
 }
 
-$file_name = 'image/pixiv/file_list.csv';
-$server = 'https://cdn.jsdelivr.net/gh/taochenyue/static_resource/';
+function get_list($type)
+{
+    $file_name = 'resource/images/blog/' . $type . '.csv';
+    if (file_exists('../' . $file_name)) {
+        $imgs_array = file('../' . $file_name);
+    } else {
+        // for vercel runtime
+        $server = 'https://cdn.jsdelivr.net/gh/taochenyue/resource/';
+        $imgs_array = file($server . $file_name);
+    }
+    return $imgs_array;
+}
 
-if (file_exists($file_name))
-    $imgs_array = file($file_name);
-else                                   // for vercel runtime
-    $imgs_array = file($server . $file_name);
+$name_list = ["h", "v", "s"];
+$img_list = [];
+
+foreach (["h", "v", "s"] as $name) {
+    $img_list[$name] = get_list($name);
+}
 
 if (isset($_REQUEST["type"])) {
     $type = $_REQUEST["type"];
@@ -21,27 +36,14 @@ if (isset($_REQUEST["type"])) {
     $type = "horizontal";
 }
 
-if (!in_array($type, ["horizontal", "vertical", "square"])) {
-    $type = "horizontal";
-}
 
-if (isset($_REQUEST["name"])) {
-    $name = $_REQUEST["name"];
+if (isset($_REQUEST["seed"])) {
+    $seed = $_REQUEST["seed"];
 } else {
-    $name = "*";
+    $seed = time();
 }
 
-$filter_array = [];
-foreach ($imgs_array as $key => $value) {
-    if (preg_match("/\/$type\/$name/i", $value))
-        array_push($filter_array, $value);
-}
+$img = get_img($type, $seed, $img_list);
+header("Location: $img");
 
-if (count($filter_array) == 0) {
-    die("No image found!");
-}
-
-$img = $filter_array[array_rand($filter_array)];
-// echo "Location: $server" . $img;
-die(header("Location: $server" . $img));
 ?>
